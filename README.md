@@ -1,3 +1,11 @@
+# Firestore Punch Clock
+
+A simple Firebase powered Punch Clock React app. Perfect to keep track of how many hours worked and persist the data to a database.
+
+## To Do List
+
+- 
+
 
 ## 👉 Get Started
 Install dependencies
