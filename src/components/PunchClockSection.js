@@ -6,17 +6,46 @@ import Row from "react-bootstrap/Row";
 
 // { create item, auth } decronstructed props passed down from higher component
 const PunchClockSection = ({ createPunchClock, auth }) => {
+
   // will move all the function code to its own context to act as a stand alone app if needed
   const [isClockedIn, setIsClockedIn] = useState(false);
-  const [clock, setClock] = useState();
-  const [time, setTime] = useState({
+  const [intervalSession, setIntervalSession] = useState(null);
+  const [clock, setClock] = useState({
     days: 0,
     hours: 0,
     minutes: 0,
-    seconds: 0
   });
-  let date = new Date();
-  let currentTime = date.getHours() + ":" + date.getMinutes();
+  const [time, setTime] = useState({
+    seconds: 0,
+    time: new Date().toLocaleString(),
+    date: new Date()
+  });
+  
+  function calculateTimeWorked( seconds ) {
+    if ( seconds > 60 ) {
+      let minutes = ( seconds / 60 ).round();
+      setClock({ days: clock.days, hours: clock.hours, minutes: minutes });
+      if ( minutes > 60 ) {
+        let hours = ( minutes / 60 ).round();
+        setClock({ days: clock.days, hours: hours, minutes: clock.minutes });
+        if ( hours > 24 ) {
+          let days = ( hours / 24 ).round();
+          setClock({ days: days, hours: clock.hours, minutes: clock.minutes });
+        }
+      }
+    }
+    return clock;
+  }
+
+  function tick() {
+    const t = new Date().toLocaleString().split(", ");
+    setTime({ 
+      seconds: time.seconds++,
+      time: t[1], 
+      date: t[0]
+    })
+  }
+
   const handleToggle = (e) => {
     e.preventDefault();
     // if user is not clocked in
@@ -32,29 +61,14 @@ const PunchClockSection = ({ createPunchClock, auth }) => {
           name: auth.user.name,
           picture: auth.user.picture,
         },
-        date: date,
-        time_punched_in: currentTime
+        date: time.date,
+        time: time.time
       });
-      //function to increment the clock based on seconds passed
-      setClock(setInterval(() => setTime({
-        //ternary logic to set seconds appropriately
-        days: time.hours >= 23 ? time.days++ : time.days,
-        hours: time.minutes >= 59 ? time.hours++ : time.hours,
-        minutes: time.seconds >= 59 ? time.minutes++ : time.minutes,
-        //todo --> having problems with seconds, for some reason seconds hits 1 twice which is also
-        //todo--> affecting the minute incrementor, so needs to be fixed here.
-        seconds: time.seconds > 59 ? time.seconds = 0 : time.seconds++
-      }), 1000 ));
+      //set interval function - start ticking
+      const intervalId = setInterval(() => tick(), 1000);
+      setIntervalSession( intervalId );
     } else {
-      //! -- stupid quick fix for now -- 
-      // adjust minutes by dividing by 2 before setting
-      // because time increments by 2 everytime the minute goes up
-      time.minutes = time.minutes / 2;
-      // adjust seconds by subtracting seconds by the amount of minutes after --
-      // -- dividing by 2 because it adds an extra second every time it tries to
-      // correctly increment the minute place... if that makes sense
-      time.seconds = time.seconds - time.minutes;
-      // add a time log item into the database with relevant clock out details
+      const clock = calculateTimeWorked( time.seconds );
       createPunchClock({
         name: "Clocked out Record",
         user: { 
@@ -63,18 +77,16 @@ const PunchClockSection = ({ createPunchClock, auth }) => {
           name: auth.user.name,
           picture: auth.user.picture,
         },
-        date: date,
-        time_punched_out: currentTime,
-        amount_time_clocked: time
+        date: time.date,
+        time: time.time,
+        amount_time_clocked: clock
       });
       // set clockedIn to false
       setIsClockedIn(false);
       // clear the clock/ interval function
-      clearInterval(clock);
+      clearInterval( intervalSession );
       // reset time state
       setTime({
-        hours: 0,
-        minutes: 0,
         seconds: 0
       });
     }
@@ -86,13 +98,19 @@ const PunchClockSection = ({ createPunchClock, auth }) => {
     padding: '5px',
     margin: 'auto'
   };
+
   return (
     <center>
       <Card>
         <br />
         <Card.Title>Punch Clock</Card.Title>
         <Card.Header style={border}>
-          <Card.Subtitle>{time.minutes}:{time.seconds}</Card.Subtitle>
+          <Card.Subtitle>
+            {!isClockedIn ? "0:00" : 
+              time.seconds > 60 ? time.seconds :
+              "0:" + time.seconds
+            }
+          </Card.Subtitle>
         </Card.Header>
         <Card.Body>
 
